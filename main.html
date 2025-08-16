@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simple AI-Style Summarizer</title>
+  <style>
+    :root {
+      --bg: #0f172a;          /* slate-900 */
+      --panel: #111827;       /* gray-900 */
+      --muted: #1f2937;       /* gray-800 */
+      --text: #e5e7eb;        /* gray-200 */
+      --sub: #9ca3af;         /* gray-400 */
+      --brand: #4f46e5;       /* indigo-600 */
+      --accent: #22c55e;      /* green-500 */
+      --warn: #f59e0b;        /* amber-500 */
+      --danger: #ef4444;      /* red-500 */
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: linear-gradient(160deg, #0b1226, #0f172a 40%, #0b1226);
+      color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    }
+    .container {
+      max-width: 1000px; margin: 32px auto; padding: 20px; 
+    }
+    .card {
+      background: rgba(17,24,39,0.8); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: var(--radius); padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0 0 14px; font-size: 28px; letter-spacing: 0.2px; }
+    p.sub { color: var(--sub); margin-top: 0; }
+    .grid { display: grid; gap: 16px; }
+    @media (min-width: 900px) { .grid-2 { grid-template-columns: 1.2fr 0.8fr; } }
+
+    label { display: block; font-size: 14px; color: var(--sub); margin: 10px 0 6px; }
+    input[type="text"], input[type="email"], textarea {
+      width: 100%; background: var(--muted); color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; 
+      padding: 12px 14px; font-size: 14px; outline: none;
+    }
+    textarea { min-height: 180px; resize: vertical; }
+    .file-row { display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
+    .file-row input[type="file"] { 
+      background: var(--muted); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .filename { color: var(--sub); font-size: 12px; }
+
+    .btns { display:flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    button, .ghost {
+      border: 0; background: var(--brand); color: white; padding: 11px 16px; 
+      border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 14px;
+      transition: transform .05s ease, opacity .2s ease, box-shadow .2s ease; 
+      box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ghost { background: transparent; border: 1px solid rgba(255,255,255,0.14); color: var(--text); box-shadow: none; }
+    .success { background: var(--accent); box-shadow: 0 8px 24px rgba(34,197,94,0.35); }
+    .danger { background: var(--danger); box-shadow: 0 8px 24px rgba(239,68,68,0.35); }
+
+    .summary {
+      background: rgba(2,6,23,0.65); border: 1px dashed rgba(255,255,255,0.18);
+      min-height: 220px; border-radius: 12px; padding: 14px; line-height: 1.6;
+    }
+    .hint { font-size: 12px; color: var(--sub); margin-top: 6px; }
+    .badge { display:inline-flex; gap:8px; align-items:center; background: rgba(79,70,229,.15); border: 1px solid rgba(79,70,229,.35); color:#c7d2fe; padding:6px 10px; border-radius:999px; font-size:12px; }
+    .tag { display:inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--sub); font-size: 12px; }
+    .footer { text-align:center; color: var(--sub); margin-top: 22px; font-size: 12px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    ul { margin: 0; padding-left: 18px; }
+    .toast { position: fixed; bottom: 18px; right: 18px; background: rgba(17,24,39,.95); border: 1px solid rgba(255,255,255,.12); color: var(--text); padding: 10px 12px; border-radius: 10px; display:none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div style="display:flex; justify-content: space-between; gap:10px; align-items: center; flex-wrap:wrap;">
+        <div>
+          <h1>AI Summarizer</h1>
+          <p class="sub">𝓤𝓹𝓵𝓸𝓪𝓭 𝓪 𝓽𝓻𝓪𝓷𝓼𝓬𝓻𝓲𝓹𝓽, 𝓪𝓭𝓭 𝔂𝓸𝓾𝓻 𝓸𝔀𝓷 𝓲𝓷𝓼𝓽𝓻𝓾𝓬𝓽𝓲𝓸𝓷 (𝓹𝓻𝓸𝓶𝓹𝓽), 𝓰𝓮𝓷𝓮𝓻𝓪𝓽𝓮 𝓪 𝓼𝓽𝓻𝓾𝓬𝓽𝓾𝓻𝓮𝓭 𝓼𝓾𝓶𝓶𝓪𝓻𝔂 𝔂𝓸𝓾 𝓬𝓪𝓷 𝓮𝓭𝓲𝓽, 𝓽𝓱𝓮𝓷 𝓼𝓱𝓪𝓻𝓮 𝓿𝓲𝓪 𝓮𝓶𝓪𝓲𝓵.</p>
+        </div>
+        <div class="badge" title="No server needed – runs in your browser"> Demo Only</div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:12px;">
+        <!-- LEFT: INPUTS -->
+        <section>
+          <label>Transcript (paste or upload .txt)</label>
+          <textarea id="transcript" placeholder="Paste meeting notes📒, call transcript📞, interview💻 log, etc..."></textarea>
+
+          <div class="file-row">
+            <input id="fileInput" type="file" accept=".txt" />
+            <span id="fileName" class="filename">No file selected</span>
+            <button id="clearInput" type="button" class="ghost">Clear</button>
+          </div>
+
+          <label style="margin-top:14px;">Custom instruction / prompt</label>
+          <textarea id="prompt" placeholder="Ex. Summarize in bullet points for executives."></textarea>
+
+          <div class="btns">
+            <button id="btnGenerate" type="button">Generate Summary</button>
+            <button id="btnSample" type="button" class="ghost">Try Sample</button>
+          </div>
+        </section>
+
+        <!-- RIGHT: SUMMARY & SHARE -->
+        <section>
+          <div style="display:flex; justify-content: space-between; align-items: center; gap:10px;">
+            <label style="margin:0;">Generated summary (editable)</label>
+            <span class="tag">contenteditable</span>
+          </div>
+          <div id="summary" class="summary" contenteditable="true" spellcheck="true" aria-label="Editable summary output"></div>
+          <div class="hint">𝑇𝑖𝑝 : 𝐸𝑑𝑖𝑡 𝑓𝑟𝑒𝑒𝑙𝑦. 𝑈𝑠𝑒 <kbd>𝐶𝑡𝑟𝑙/ 𝐶𝑚𝑑+𝐵</kbd>/<kbd> I</kbd> 𝑖𝑛 𝑚𝑜𝑠𝑡 𝑏𝑟𝑜𝑤𝑠𝑒𝑟𝑠 𝑓𝑜𝑟 𝑏𝑎𝑠𝑖𝑐 𝑓𝑜𝑟𝑚𝑎𝑡𝑡𝑖𝑛𝑔.</div>
+
+          <div style="margin-top:14px;">
+            <label>Send via email</label>
+            <input id="recipients" type="text" placeholder="Recipient emails (comma separated)" />
+            <input id="subject" type="text" placeholder="Subject" value="Summary" style="margin-top:8px;"/>
+            <div class="btns">
+              <button id="btnEmail" type="button" class="success" title="Opens your email app with the summary pre-filled">Share via Email</button>
+              <button id="btnCopy" type="button" class="ghost">Copy to Clipboard</button>
+              <button id="btnDownload" type="button" class="ghost">Download .txt</button>
+              <button id="btnClearSummary" type="button" class="danger">Clear Summary</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="footer">This is a lightweight,  demo (no backend). The “AI” summarizer uses simple prompt.</div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    // --- Utilities ---
+    const toast = (msg) => {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 2200);
+    };
+    const sanitizeEmails = (raw) => raw
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .filter(s => /^(?:[\w.+-]+)@(?:[\w-]+\.)+[\w-]{2,}$/.test(s));
+
+    // --- Very Simple Summarizer (client-side heuristic) ---
+    function generateSummary(text, prompt) {
+      if (!text || !text.trim()) return '';
+      const sentences = text
+        .replace(/\n+/g, ' ') // flatten
+        .split(/(?<=[.!?])\s+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      // Stopwords (minimal)
+      const stop = new Set('i me my myself we our ours ourselves you your yours yourself yourselves he him his himself she her hers herself it its itself they them their theirs themselves what which who whom this that these those am is are was were be been being have has had having do does did doing a an the and but if or because as until while of at by for with about against between into through during before after above below to from up down in out on off over under again further then once here there when where why how all any both each few more most other some such no nor not only own same so than too very can will just don don should now'.split(' '));
+
+      const words = (s) => s.toLowerCase().match(/[a-zA-Z][a-zA-Z'-]*/g) || [];
+      const promptWords = new Set(words(prompt || '').filter(w => !stop.has(w)));
+
+      // Term frequency scoring with slight boost for prompt keywords
+      const tf = Object.create(null);
+      words(text).forEach(w => { if(!stop.has(w)) tf[w] = (tf[w]||0)+1; });
+
+      const scoreSentence = (s) => {
+        const ws = words(s);
+        let score = 0;
+        for (const w of ws) {
+          if (stop.has(w)) continue;
+          score += (tf[w] || 0);
+          if (promptWords.has(w)) score += 2; // boost for prompt terms
+        }
+        // Slight positional bonus for early sentences
+        score += Math.max(0, 2 - (s.length/180));
+        return score;
+      };
+
+      let ranked = sentences.map((s, i) => ({ s, i, score: scoreSentence(s) }));
+
+      // Optional filter for action items if user asks
+      const wantsActionOnly = /(action|todo|to\s?do|tasks?|follow[- ]?ups?|owners?|owners?\b|assign|deadline|next\s*steps?)/i.test(prompt || '');
+      if (wantsActionOnly) {
+        const actionish = /\b(will|should|need to|to be|assign(ed)? to|by \d{1,2}\/?\d{1,2}|deadline|ETA|next step|follow up)\b/i;
+        ranked = ranked.filter(r => actionish.test(r.s));
+        if (ranked.length === 0) ranked = sentences.map((s,i)=>({s,i,score:scoreSentence(s)}));
+      }
+
+      ranked.sort((a,b) => b.score - a.score || a.i - b.i);
+
+      const n = Math.min(10, Math.max(4, Math.round(sentences.length * 0.2)));
+      const picked = ranked.slice(0, n).sort((a,b) => a.i - b.i).map(r => r.s);
+
+      // Basic formatting driven by prompt cues
+      const wantsBullets = /(bullet|bulleted|list|points?|executive)/i.test(prompt || '');
+      const wantsHeadings = /(structured|sections?|themes?|group)/i.test(prompt || '');
+
+      let out = '';
+      if (wantsHeadings) {
+        out += '**Summary**\n\n';
+      }
+
+      if (wantsBullets || wantsActionOnly) {
+        out += picked.map(s => `• ${s}`).join('\n');
+      } else {
+        out += picked.join(' ');
+      }
+
+      if (wantsHeadings) {
+        // Naive action extraction for a dedicated section
+        const actions = sentences.filter(s => /\b(will|should|need to|assign|deadline|by \d{1,2}\/?\d{1,2}|next step|follow up)\b/i.test(s));
+        if (actions.length) {
+          out += '\n\n**Action Items**\n' + actions.slice(0, 8).map(s => `• ${s}`).join('\n');
+        }
+      }
+
+      return out.trim();
+    }
+
+    // --- DOM hooks ---
+    const $ = (id) => document.getElementById(id);
+
+    $('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      $('fileName').textContent = file.name;
+      if (file.type && file.type !== 'text/plain') {
+        toast('Please upload a .txt file.');
+        return;
+      }
+      const text = await file.text();
+      $('transcript').value = text;
+      toast('Transcript loaded.');
+    });
+
+    $('clearInput').addEventListener('click', () => {
+      $('fileInput').value = '';
+      $('fileName').textContent = 'No file selected';
+      $('transcript').value = '';
+      toast('Cleared transcript.');
+    });
+
+    $('btnGenerate').addEventListener('click', () => {
+      const text = $('transcript').value.trim();
+      const prompt = $('prompt').value.trim();
+      if (!text) { toast('Add or upload a transcript first.'); return; }
+      const out = generateSummary(text, prompt);
+      if (!out) { toast('Could not generate a summary (input too short?).'); return; }
+      $('summary').innerText = out; // keep simple markdown-like text; editable
+      toast('Summary generated. You can edit it.');
+    });
+
+    $('btnSample').addEventListener('click', () => {
+      $('transcript').value = `Attendees: Anika (PM), Rohan (Eng), Meera (Design), Karan (Ops)\n\n1) KPI review: DAU up 8% WoW, retention steady at 34%. Churn higher in Tier-2 cities due to onboarding drop-off.\n2) Launch timeline: v1.3 feature freeze by Sept 5; beta rollout Sept 12; GA target Sept 26.\n3) Blockers: Payment gateway sandbox flaky; Android crash rate 1.2% on 9.0 devices.\n4) Decisions: Remove OTP friction on first open; prioritize checkout performance.\n5) Action items: Rohan to profile checkout and reduce p95 < 1.8s by Sept 1. Meera to revise empty-state screens by Aug 25. Karan to coordinate with RazorX team for sandbox stability. Anika to draft comms for beta cohort by Aug 28.`;
+      $('prompt').value = 'Summarize in bullet points for executives. Highlight only action items and deadlines.';
+      toast('Loaded sample data.');
+    });
+
+    $('btnEmail').addEventListener('click', () => {
+      const emails = sanitizeEmails($('recipients').value);
+      if (!emails.length) { toast('Add at least one valid recipient email.'); return; }
+      const subject = $('subject').value.trim() || 'Summary';
+      const body = $('summary').innerText.trim();
+      if (!body) { toast('Summary is empty. Generate or type something first.'); return; }
+      // Use mailto to open default email client
+      const mailto = `mailto:${encodeURIComponent(emails.join(','))}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+    });
+
+    $('btnCopy').addEventListener('click', async () => {
+      const text = $('summary').innerText.trim();
+      if (!text) { toast('Nothing to copy.'); return; }
+      try { await navigator.clipboard.writeText(text); toast('Copied to clipboard.'); }
+      catch { toast('Copy failed – your browser may block it.'); }
+    });
+
+    $('btnDownload').addEventListener('click', () => {
+      const text = $('summary').innerText.trim();
+      if (!text) { toast('Nothing to download.'); return; }
+      const blob = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (document.getElementById('subject').value.trim() || 'summary') + '.txt';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+
+    $('btnClearSummary').addEventListener('click', () => {
+      $('summary').innerText = '';
+      toast('Summary cleared.');
+    });
+  </script>
+</body>
+</html>
